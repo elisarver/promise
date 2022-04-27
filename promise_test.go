@@ -18,7 +18,7 @@ type testtype[T any] struct {
 	wantErr     bool
 }
 
-func TestPromiseWaitString(t *testing.T) {
+func TestPromiseGetString(t *testing.T) {
 	msg := "hello"
 	tests := []testtype[string]{
 		{
@@ -52,7 +52,10 @@ func TestPromiseWaitString(t *testing.T) {
 				return ctx
 			},
 			fn: func(ctx context.Context) (*string, error) {
-				return &msg, nil
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
 			},
 			want:    nil,
 			wantErr: true,
@@ -60,99 +63,16 @@ func TestPromiseWaitString(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, test.testPromiseWait)
+		t.Run(test.name, test.testPromiseGet)
 	}
 }
 
-func TestPromiseAnyString(t *testing.T) {
-	msg := "hello"
-	tests := []testtype[string]{
-		{
-			name: "string",
-			contextFunc: func() context.Context {
-				return context.Background()
-			},
-			fn: func(ctx context.Context) (*string, error) {
-				return &msg, nil
-			},
-			want:    &msg,
-			wantErr: false,
-		},
-		{
-			name: "error",
-			contextFunc: func() context.Context {
-				return context.Background()
-			},
-			fn: func(ctx context.Context) (*string, error) {
-				return nil, errors.New("error")
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "canceled",
-			contextFunc: func() context.Context {
-				ctx, cancel := context.WithCancel(context.Background())
-				cancel()
-
-				return ctx
-			},
-			fn: func(ctx context.Context) (*string, error) {
-				time.Sleep(time.Second)
-				return &msg, nil
-			},
-
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "wait in fn",
-			contextFunc: func() context.Context {
-				return context.Background()
-			},
-			fn: func(ctx context.Context) (*string, error) {
-				time.Sleep(time.Second)
-				return &msg, nil
-			},
-			want:    nil,
-			wantErr: true,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			test.testPromiseAny(t)
-		})
-	}
-}
-
-func (test testtype[T]) testPromiseWait(t *testing.T) {
-	t.Helper()
-	t.Run(test.name, func(t *testing.T) {
-		ctx := test.contextFunc()
-
-		p := Promise(ctx, test.fn)
-		got, err := p.Wait()
-
-		if (err != nil) != test.wantErr {
-			t.Errorf("Wait() error = %v, wantErr %v", err, test.wantErr)
-			return
-		}
-
-		if !reflect.DeepEqual(got, test.want) {
-			t.Errorf("Wait() got = %v, want %v", got, test.want)
-		}
-	})
-}
-
-func (test testtype[T]) testPromiseAny(t *testing.T) {
-	t.Helper()
-
+func (test testtype[T]) testPromiseGet(t *testing.T) {
 	ctx := test.contextFunc()
 
 	p := Promise(ctx, test.fn)
 	time.Sleep(time.Second / 2)
-	got, err := p.Any()
+	got, err := p.Get()
 
 	if (err != nil) != test.wantErr {
 		t.Errorf("Wait() error = %v, wantErr %v", err, test.wantErr)
@@ -162,5 +82,4 @@ func (test testtype[T]) testPromiseAny(t *testing.T) {
 	if !reflect.DeepEqual(got, test.want) {
 		t.Errorf("Wait() got = %v, want %v", got, test.want)
 	}
-
 }
