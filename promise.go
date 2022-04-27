@@ -13,7 +13,7 @@ type promise[T any] struct {
 	errCh chan error
 }
 
-func (p *promise[T]) Fulfill() (*T, error) {
+func (p *promise[T]) Wait() (*T, error) {
 	select {
 	case <-p.ctx.Done():
 		return nil, errors.New("context canceled")
