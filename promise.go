@@ -13,14 +13,31 @@ type promise[T any] struct {
 	errCh chan error
 }
 
+var ErrContextCanceled = errors.New("context canceled")
+
 func (p *promise[T]) Wait() (*T, error) {
 	select {
 	case <-p.ctx.Done():
-		return nil, errors.New("context canceled")
+		return nil, ErrContextCanceled
 	case res := <-p.valCh:
 		return res, nil
 	case err := <-p.errCh:
 		return nil, err
+	}
+}
+
+var ErrNoImmediateResults = errors.New("no immediate results")
+
+func (p *promise[T]) Any() (*T, bool, error) {
+	select {
+	case <-p.ctx.Done():
+		return nil, false, ErrContextCanceled
+	case res := <-p.valCh:
+		return res, true, nil
+	case err := <-p.errCh:
+		return nil, false, err
+	default:
+		return nil, false, ErrNoImmediateResults
 	}
 }
 
