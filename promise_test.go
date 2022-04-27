@@ -1,7 +1,6 @@
 package promise_test
 
 import (
-	"context"
 	"errors"
 	"reflect"
 	"testing"
@@ -11,22 +10,43 @@ import (
 )
 
 type testtype[T any] struct {
-	name        string
-	contextFunc func() context.Context
-	fn          func(ctx context.Context) (*T, error)
-	want        *T
-	wantErr     bool
+	name    string
+	fn      func() (T, error)
+	want    T
+	wantErr bool
 }
 
 func TestPromiseGetString(t *testing.T) {
-	msg := "hello"
 	tests := []testtype[string]{
 		{
-			name: "string",
-			contextFunc: func() context.Context {
-				return context.Background()
+			name: "value",
+			fn: func() (string, error) {
+				return "hello", nil
 			},
-			fn: func(ctx context.Context) (*string, error) {
+			want:    "hello",
+			wantErr: false,
+		},
+		{
+			name: "error",
+			fn: func() (string, error) {
+				return "", errors.New("error")
+			},
+			want:    "",
+			wantErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, test.testPromiseGet)
+	}
+}
+
+func TestPromiseGetStringPointer(t *testing.T) {
+	msg := "hello"
+	tests := []testtype[*string]{
+		{
+			name: "value",
+			fn: func() (*string, error) {
 				return &msg, nil
 			},
 			want:    &msg,
@@ -34,28 +54,8 @@ func TestPromiseGetString(t *testing.T) {
 		},
 		{
 			name: "error",
-			contextFunc: func() context.Context {
-				return context.Background()
-			},
-			fn: func(ctx context.Context) (*string, error) {
+			fn: func() (*string, error) {
 				return nil, errors.New("error")
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "canceled",
-			contextFunc: func() context.Context {
-				ctx, cancel := context.WithCancel(context.Background())
-				cancel()
-
-				return ctx
-			},
-			fn: func(ctx context.Context) (*string, error) {
-				select {
-				case <-ctx.Done():
-					return nil, ctx.Err()
-				}
 			},
 			want:    nil,
 			wantErr: true,
@@ -68,9 +68,7 @@ func TestPromiseGetString(t *testing.T) {
 }
 
 func (test testtype[T]) testPromiseGet(t *testing.T) {
-	ctx := test.contextFunc()
-
-	p := Promise(ctx, test.fn)
+	p := Promise(test.fn)
 	time.Sleep(time.Second / 2)
 	got, err := p.Get()
 
