@@ -28,16 +28,19 @@ func (p *promise[T]) Wait() (*T, error) {
 
 var ErrNoImmediateResults = errors.New("no immediate results")
 
-func (p *promise[T]) Any() (*T, bool, error) {
+// Any returns any of value or error, IF IT IS IMMEDIATELY AVAILABLE,
+// or else returns ErrNoImmediateResults when exit conditions have
+// not been met.
+func (p *promise[T]) Any() (*T, error) {
 	select {
 	case <-p.ctx.Done():
-		return nil, false, ErrContextCanceled
+		return nil, ErrContextCanceled
 	case res := <-p.valCh:
-		return res, true, nil
+		return res, nil
 	case err := <-p.errCh:
-		return nil, false, err
+		return nil, err
 	default:
-		return nil, false, ErrNoImmediateResults
+		return nil, ErrNoImmediateResults
 	}
 }
 

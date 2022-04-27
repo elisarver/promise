@@ -15,7 +15,6 @@ type testtype[T any] struct {
 	contextFunc func() context.Context
 	fn          func(ctx context.Context) (*T, error)
 	want        *T
-	wantBool    bool // used by TestPromiseAny tests
 	wantErr     bool
 }
 
@@ -76,9 +75,8 @@ func TestPromiseAnyString(t *testing.T) {
 			fn: func(ctx context.Context) (*string, error) {
 				return &msg, nil
 			},
-			want:     &msg,
-			wantBool: true,
-			wantErr:  false,
+			want:    &msg,
+			wantErr: false,
 		},
 		{
 			name: "error",
@@ -88,9 +86,8 @@ func TestPromiseAnyString(t *testing.T) {
 			fn: func(ctx context.Context) (*string, error) {
 				return nil, errors.New("error")
 			},
-			want:     nil,
-			wantBool: false,
-			wantErr:  true,
+			want:    nil,
+			wantErr: true,
 		},
 		{
 			name: "canceled",
@@ -105,9 +102,8 @@ func TestPromiseAnyString(t *testing.T) {
 				return &msg, nil
 			},
 
-			want:     nil,
-			wantBool: false,
-			wantErr:  true,
+			want:    nil,
+			wantErr: true,
 		},
 		{
 			name: "wait in fn",
@@ -118,9 +114,8 @@ func TestPromiseAnyString(t *testing.T) {
 				time.Sleep(time.Second)
 				return &msg, nil
 			},
-			want:     nil,
-			wantBool: false,
-			wantErr:  true,
+			want:    nil,
+			wantErr: true,
 		},
 	}
 
@@ -157,7 +152,7 @@ func (test testtype[T]) testPromiseAny(t *testing.T) {
 
 	p := Promise(ctx, test.fn)
 	time.Sleep(time.Second / 2)
-	got, gotBool, err := p.Any()
+	got, err := p.Any()
 
 	if (err != nil) != test.wantErr {
 		t.Errorf("Wait() error = %v, wantErr %v", err, test.wantErr)
@@ -166,10 +161,6 @@ func (test testtype[T]) testPromiseAny(t *testing.T) {
 
 	if !reflect.DeepEqual(got, test.want) {
 		t.Errorf("Wait() got = %v, want %v", got, test.want)
-	}
-
-	if !reflect.DeepEqual(gotBool, test.wantBool) {
-		t.Errorf("Wait() gotBool = %v, want %v", gotBool, test.wantBool)
 	}
 
 }
